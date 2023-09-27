@@ -1,3 +1,9 @@
+"""
+An abstraction of the robot. It allows to control the robot.
+
+TODO: add a way to wait till the robot is done moving
+"""
+
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 from src.Servo import Servo
 from src.utils import rad_to_deg, deg_to_rad
@@ -57,11 +63,25 @@ class Robot:
         """
         self.move_to([deg_to_rad(angle) for angle in angles])
 
-    def draw_robot(self, visualizer, delay=1):
+    def get_positions(self):
+        """
+        Get the current positions of the servos
+        """
+        return [servo.get_position() for servo in self.servos]
+
+    def set_speed(self, speed):
+        """
+        Set the speed of the servos
+        :param speed: the speed to set
+        """
+        for servo in self.servos:
+            servo.set_speed(speed)
+
+    def draw_robot(self, visualizer, delay):
         """
         Draw the current state of the robot
         """
-        thetas = [servo.get_position() for servo in self.servos]
+        thetas = self.get_positions()
         print("Current angles are", [rad_to_deg(theta) for theta in thetas])
         visualizer.show_robot(thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
 
