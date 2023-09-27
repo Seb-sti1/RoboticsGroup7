@@ -54,6 +54,14 @@ class Robot:
         """
         self.move_to([deg_to_rad(angle) for angle in angles])
 
+    def draw_robot(self, visualizer, delay=1):
+        """
+        Draw the current state of the robot
+        """
+        thetas = [servo.get_position() for servo in self.servos]
+        print("Current angles are", [rad_to_deg(theta) for theta in thetas])
+        visualizer.show_robot(thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
+
     def stop(self):
         for servo in self.servos:
             servo.disable_motor()
