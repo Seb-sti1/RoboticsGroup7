@@ -7,7 +7,7 @@ DEVICENAME = '/dev/ttyACM0'  # the port of the controller examples: Windows: 'CO
 
 
 class Robot:
-    def __init__(self, ids, bound_angles, d, a, alpha, port=DEVICENAME):
+    def __init__(self, ids, bound_angles, d, a, alpha, port=DEVICENAME, simulation=False):
         """
         :param ids: the ids of the motors
         :param bound_angles: an array of the bound angles of the motors
@@ -20,21 +20,24 @@ class Robot:
 
         self.port = port
 
-        self.port_handler = dxl.PortHandler(self.port)
-        if self.port_handler.openPort():
-            print("Succeeded to open the port")
-        else:
-            raise Exception("Failed to open the port")
+        if not simulation:
+            self.port_handler = dxl.PortHandler(self.port)
+            if self.port_handler.openPort():
+                print("Succeeded to open the port")
+            else:
+                raise Exception("Failed to open the port")
 
-        if self.port_handler.setBaudRate(BAUDRATE):
-            print("Succeeded to change the baudrate")
+            if self.port_handler.setBaudRate(BAUDRATE):
+                print("Succeeded to change the baudrate")
+            else:
+                raise Exception("Failed to change the baudrate")
         else:
-            raise Exception("Failed to change the baudrate")
+            self.port_handler = None
 
         # create the servos
         self.servos = []
         for motor_id, angle in zip(ids, bound_angles):
-            self.servos.append(Servo(motor_id, angle[0], angle[1], self.port_handler))
+            self.servos.append(Servo(motor_id, angle[0], angle[1], self.port_handler, simulation))
 
     def move_to(self, angles):
         """

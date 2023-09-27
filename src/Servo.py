@@ -1,26 +1,34 @@
 """
 This is an abstraction of the dynamixel motor. It allows to control the motor.
+
+TODO add offset to make dynamixel angles correspond to kinematics model angles
 """
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 import ControlTableAddress as addr
+from src.Simulation import SimulatedPacketHandler
 from utils import rad_to_rot, rot_to_rad
 
 
 class Servo:
-    def __init__(self, motor_id, min_angle, max_angle, port_handler):
+    def __init__(self, motor_id, min_angle, max_angle, port_handler, simulation=False):
         """
         :param motor_id: the motor id
         :param min_angle: the min angle in radians
         :param max_angle: the max angle in radians
         :param port_handler: the port handler
+        :param simulation: if the motor needs to be simulated
         """
 
         self.motor_id = motor_id
         # TODO send constraint to the motor https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#cwccw-angle-limit6-8
         self.bound = [min_angle, max_angle]
         self.port_handler = port_handler
+        self.simulation = simulation
 
-        self.packet_handler = dxl.PacketHandler(addr.PROTOCOL_VERSION)
+        if not simulation:
+            self.packet_handler = dxl.PacketHandler(addr.PROTOCOL_VERSION)
+        else:
+            self.packet_handler = SimulatedPacketHandler()
 
         self.enable_motor()
         self.set_position(0)
