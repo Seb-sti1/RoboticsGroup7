@@ -1,3 +1,7 @@
+"""
+The class `Simulation` which allows to simulate the `PacketHandler` from the dynamixel library.
+"""
+
 import threading
 import time
 import ControlTableAddress as addr

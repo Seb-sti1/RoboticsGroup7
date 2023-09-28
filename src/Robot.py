@@ -3,7 +3,6 @@ An abstraction of the robot. It allows to control the robot.
 
 TODO: add a way to wait till the robot is done moving
 """
-
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 from src.Servo import Servo
 from src.utils import rad_to_deg, deg_to_rad
