@@ -12,13 +12,18 @@ DEVICENAME = '/dev/ttyACM0'  # the port of the controller examples: Windows: 'CO
 
 
 class Robot:
-    def __init__(self, ids, bound_angles, d, a, alpha, port=DEVICENAME, simulation=False):
+    def __init__(self, ids,
+                 bound_angles, d, a, alpha,
+                 theta_to_dxl_angle_l, angle_to_dxl_theta_l,
+                 port=DEVICENAME, simulation=False):
         """
         :param ids: the ids of the motors
         :param bound_angles: an array of the bound angles of the motors
         :param d: the d parameters of the Denavit Hartenberg table
         :param a: the a parameters of the Denavit Hartenberg table
         :param alpha: the alpha parameters of the Denavit Hartenberg table
+        :param theta_to_dxl_angle_l: a list of functions to convert theta_i to the angle using the dynamixel convention
+        :param angle_to_dxl_theta_l: a list of functions to convert the angle using the dynamixel convention to theta_i
         :param port: the port of the controller
         """
         self.dh_parameters = [d, a, alpha]
@@ -41,8 +46,13 @@ class Robot:
 
         # create the servos
         self.servos = []
-        for motor_id, angle in zip(ids, bound_angles):
-            self.servos.append(Servo(motor_id, angle[0], angle[1], self.port_handler, simulation))
+        for (motor_id, angle,
+             theta_to_dxl_angle, angle_to_dxl_theta) in zip(ids, bound_angles,
+                                                            theta_to_dxl_angle_l, angle_to_dxl_theta_l):
+            self.servos.append(Servo(motor_id,
+                                     angle[0], angle[1],
+                                     theta_to_dxl_angle, angle_to_dxl_theta,
+                                     self.port_handler, simulation))
 
     def move_to(self, angles):
         """

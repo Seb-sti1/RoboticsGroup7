@@ -7,6 +7,8 @@ ADDR_MX_PUNCH = 48
 
 ADDR_MX_GOAL_POSITION = 30  # Control table address for reading goal position
 ADDR_MX_PRESENT_POSITION = 36  # Control table address for reading current position
+ADDR_MX_CW_ANGLE_LIMIT = 6  # Control table address for cw angle limit (initially 0)
+ADDR_MX_CCW_ANGLE_LIMIT = 8  # Control table address for ccw angle limit (initially 1023)
 
 ADDR_MX_TORQUE_ENABLE = 24  # Control table address for enabling torque mode
 ADDR_MX_TORQUE_LIMIT = 34

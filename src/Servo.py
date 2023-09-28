@@ -1,7 +1,5 @@
 """
 This is an abstraction of the dynamixel motor. It allows to control the motor.
-
-TODO add offset to make dynamixel angles correspond to kinematics model angles
 """
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 import ControlTableAddress as addr
@@ -10,18 +8,24 @@ from utils import rad_to_rot, rot_to_rad
 
 
 class Servo:
-    def __init__(self, motor_id, min_angle, max_angle, port_handler, simulation=False):
+    def __init__(self, motor_id, min_angle, max_angle,
+                 theta_to_dxl_angle, angle_to_dxl_theta,
+                 port_handler, simulation=False):
         """
         :param motor_id: the motor id
         :param min_angle: the min angle in radians
         :param max_angle: the max angle in radians
+        :param theta_to_dxl_angle: a function to convert theta_i to the angle using the dynamixel convention
+        :param angle_to_dxl_theta: a function to convert the angle using the dynamixel convention to theta_i
         :param port_handler: the port handler
         :param simulation: if the motor needs to be simulated
         """
-
+        self.theta_to_dxl_angle = theta_to_dxl_angle
+        self.angle_to_dxl_theta = angle_to_dxl_theta
         self.motor_id = motor_id
-        # TODO send constraint to the motor https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/#cwccw-angle-limit6-8
+
         self.bound = [min_angle, max_angle]
+
         self.port_handler = port_handler
         self.simulation = simulation
 
@@ -30,6 +34,7 @@ class Servo:
         else:
             self.packet_handler = SimulatedPacketHandler()
 
+        self.set_position_limit()
         self.enable_motor()
         self.set_position(0)
         self.set_speed(1.3)
@@ -64,7 +69,7 @@ class Servo:
                                                                        self.motor_id,
                                                                        addr.ADDR_MX_PRESENT_POSITION)
         self.check_comm_result(r, e)
-        return rot_to_rad(dxl_present_position)
+        return self.angle_to_dxl_theta(rot_to_rad(dxl_present_position))
 
     def set_position(self, angle):
         """
@@ -77,7 +82,15 @@ class Servo:
             print(f"[{self.motor_id}] Warning: Angle out of range,"
                   f" value clamp between [{self.bound[0]}, {self.bound[1]}]")
 
-        return self.__write2ByteTxRx__(addr.ADDR_MX_GOAL_POSITION, int(rad_to_rot(angle)))
+        return self.__write2ByteTxRx__(addr.ADDR_MX_GOAL_POSITION, int(rad_to_rot(self.theta_to_dxl_angle(angle))))
+
+    def set_position_limit(self):
+        """
+        Set the position limit of the servo
+        :return:
+        """
+        self.__write2ByteTxRx__(addr.ADDR_MX_CW_ANGLE_LIMIT, int(rad_to_rot(self.theta_to_dxl_angle(self.bound[0]))))
+        self.__write2ByteTxRx__(addr.ADDR_MX_CCW_ANGLE_LIMIT, int(rad_to_rot(self.theta_to_dxl_angle(self.bound[1]))))
 
     def set_speed(self, speed):
         """
