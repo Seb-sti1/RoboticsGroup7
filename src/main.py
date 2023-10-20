@@ -1,14 +1,9 @@
 import threading
 from Robot import Robot
 from src.Visualizer import Visualizer
-from src.utils import deg_to_rad, rad_to_deg
+from src.utils import deg_to_rad
 
 if __name__ == '__main__':
-
-    """
-    WARNING: before starting this on the real robot, comment out the following lines the self.set_position(0)
-    in Servo class
-    """
     sim = True
 
     bound_angle_rad = [(deg_to_rad(tup[0]), deg_to_rad(tup[1])) for tup in
