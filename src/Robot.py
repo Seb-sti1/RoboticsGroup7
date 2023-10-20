@@ -14,6 +14,7 @@ class Robot:
     def __init__(self, ids,
                  bound_angles, d, a, alpha,
                  theta_to_dxl_angle_l, dxl_angle_to_theta_l,
+                 reverse_kinematics,
                  port=DEVICENAME, simulation=False):
         """
         :param ids: the ids of the motors
@@ -23,9 +24,12 @@ class Robot:
         :param alpha: the alpha parameters of the Denavit Hartenberg table
         :param theta_to_dxl_angle_l: a list of functions to convert theta_i to the angle using the dynamixel convention
         :param dxl_angle_to_theta_l: a list of functions to convert the angle using the dynamixel convention to theta_i
+        :param reverse_kinematics: a function to calculate the angles of the motors given the position of the end effector
         :param port: the port of the controller
+        :param simulation: if the robot should be simulated
         """
         self.dh_parameters = [d, a, alpha]
+        self.reverse_kinematics = reverse_kinematics
 
         self.port = port
 
@@ -76,6 +80,29 @@ class Robot:
         :param wait: if the function should wait till the robot is done moving
         """
         self.move_to([deg_to_rad(angle) for angle in angles], wait)
+
+    def move_to_pos(self, o, angle, wait=False):
+        """
+        Move the robot to the given position
+        :param o: x, y, z
+        :param angle: roll, pitch, yaw
+        :param wait: if the function should wait till the robot is done moving
+        :return:
+        """
+
+        angles = self.reverse_kinematics(o, angle, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2])
+        if angles:
+            in_bounds = True
+            for angle, servo in zip(angles, self.servos):
+                if angle < servo.bound[0] or angle > servo.bound[1]:
+                    in_bounds = False
+                    break
+            if in_bounds:
+                self.move_to(angles, wait)
+                return True
+
+        print("Position not reachable")
+        return False
 
     def get_positions(self):
         """
