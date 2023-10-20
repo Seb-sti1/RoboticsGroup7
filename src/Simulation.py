@@ -8,7 +8,7 @@ import ControlTableAddress as addr
 from src.dynamixel_sdk.src.dynamixel_sdk import Protocol1PacketHandler
 from utils import rot_to_rad, rad_to_rot
 
-SIM_TIME = 0.3
+SIM_TIME = 0.05
 
 
 class SimulatedPacketHandler:

@@ -1,6 +1,4 @@
 import threading
-import time
-
 from Robot import Robot
 from src.Visualizer import Visualizer
 from src.utils import deg_to_rad, rad_to_deg
@@ -11,7 +9,7 @@ if __name__ == '__main__':
     WARNING: before starting this on the real robot, comment out the following lines the self.set_position(0)
     in Servo class
     """
-    sim = False
+    sim = True
 
     bound_angle_rad = [(deg_to_rad(tup[0]), deg_to_rad(tup[1])) for tup in
                        [(-130, 130), (-30, 180), (-100, 100), (-100, 100)]]
@@ -34,12 +32,10 @@ if __name__ == '__main__':
 
     def cmd():
         our_robot.set_speed(0.15)
-        our_robot.move_to_deg([90, -10, 10, 10])
-        time.sleep(15)
+        our_robot.move_to_deg([90, -10, 10, 10], True)
 
         our_robot.set_speed(0.2)
-        our_robot.move_to_deg([0, 90, 0, 0])
-        time.sleep(5)
+        our_robot.move_to_deg([0, 90, 0, 0], True)
 
     cmd_thread = threading.Thread(target=cmd)
     cmd_thread.start()

@@ -1,8 +1,7 @@
 """
 An abstraction of the robot. It allows to control the robot.
-
-TODO: add a way to wait till the robot is done moving
 """
+import time
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 from src.Servo import Servo
 from src.utils import rad_to_deg, deg_to_rad
@@ -54,10 +53,11 @@ class Robot:
                                      theta_to_dxl_angle, dxl_angle_to_theta,
                                      self.port_handler, simulation))
 
-    def move_to(self, angles):
+    def move_to(self, angles, wait=False):
         """
         Move the robot to the given angles
         :param angles: an array of angles in radians
+        :param wait: if the function should wait till the robot is done moving
         """
         if len(angles) != len(self.servos):
             raise Exception("The number of angles does not match the number of servos")
@@ -65,18 +65,37 @@ class Robot:
         for servo, angle in zip(self.servos, angles):
             servo.set_position(angle)
 
-    def move_to_deg(self, angles):
+        if wait:
+            while self.is_moving():
+                pass
+
+    def move_to_deg(self, angles, wait=False):
         """
         Move the robot to the given angles
         :param angles: an array of angles in degrees
+        :param wait: if the function should wait till the robot is done moving
         """
-        self.move_to([deg_to_rad(angle) for angle in angles])
+        self.move_to([deg_to_rad(angle) for angle in angles], wait)
 
     def get_positions(self):
         """
         Get the current positions of the servos
         """
         return [servo.get_position() for servo in self.servos]
+
+    def is_moving(self, delay=0.1):
+        """
+        Check if the robot is moving
+        :param delay: the delay between the checks
+        :return: boolean
+        """
+        positions_before = self.get_positions()
+        time.sleep(delay)
+        positions_after = self.get_positions()
+        diff = 0
+        for position_before, position_after in zip(positions_before, positions_after):
+            diff += abs(position_after - position_before)
+        return diff > 0.001
 
     def set_speed(self, speed):
         """
