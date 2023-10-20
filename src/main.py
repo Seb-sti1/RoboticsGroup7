@@ -29,7 +29,7 @@ def reverse_kinematics(o, angles, d, a, alpha):
     mu = x/cos(theta_1) - a[3]*cos(theta)
     rho = z - d[0] - a[3]*sin(theta)
 
-    theta_3 = acos((rho**2 + mu**2 - a[1]**2 - a[2]**2) / (2*a[1]*a[2]))
+    theta_3 = -acos((rho**2 + mu**2 - a[1]**2 - a[2]**2) / (2*a[1]*a[2]))
     theta_2 = atan2((-a[2]*sin(theta_3)*mu + (a[1] + a[2]*cos(theta_3))*rho),
                     ((a[1] + a[2]*cos(theta_3))*mu + a[2]*sin(theta_3)*rho))
     theta_4 = theta - theta_2 - theta_3
