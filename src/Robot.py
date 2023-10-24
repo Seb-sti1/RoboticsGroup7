@@ -81,12 +81,13 @@ class Robot:
         """
         self.move_to([deg_to_rad(angle) for angle in angles], wait)
 
-    def move_to_pos(self, o, angle, wait=False):
+    def move_to_pos(self, o, angle, wait=False, throw=False):
         """
         Move the robot to the given position
         :param o: x, y, z
         :param angle: roll, pitch, yaw
         :param wait: if the function should wait till the robot is done moving
+        :param throw: throw an exception is the position is not reachable
         :return:
         """
 
@@ -101,7 +102,11 @@ class Robot:
                 self.move_to(angles, wait)
                 return True
 
-        print("Position not reachable")
+        if throw:
+            raise Exception("Position not reachable")
+        else:
+            print("Position not reachable")
+
         return False
 
     def get_positions(self):
@@ -132,12 +137,13 @@ class Robot:
         for servo in self.servos:
             servo.set_speed(speed)
 
-    def draw_robot(self, visualizer, delay):
+    def draw_robot(self, visualizer, delay, log=False):
         """
         Draw the current state of the robot
         """
         thetas = self.get_positions()
-        print("Current angles are", [rad_to_deg(theta) for theta in thetas])
+        if log:
+            print("Current angles are", [rad_to_deg(theta) for theta in thetas])
         visualizer.show_robot(thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
 
     def stop(self):
