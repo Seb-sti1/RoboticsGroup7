@@ -50,7 +50,7 @@ if __name__ == '__main__':
     sim = True
 
     bound_angle_rad = [(deg_to_rad(tup[0]), deg_to_rad(tup[1])) for tup in
-                       [(-130, 130), (-30, 180), (-100, 100), (-100, 100)]]
+                       [(-130, 130), (-150, 150), (-150, 150), (-150, 150)]]
 
     our_robot = Robot([1, 2, 3, 4],
                       bound_angle_rad,
@@ -70,8 +70,19 @@ if __name__ == '__main__':
     v = Visualizer(our_robot)
 
     def cmd():
-        our_robot.set_speed(0.15)
-        our_robot.move_to_pos([0.2, 0.1, 0.1], [0, 0, 0], wait=True)
+        our_robot.set_speed(0.2)
+        # move the robot the full up position
+        our_robot.move_to([0, 3.14/2, 0, 0], wait=True)
+        input("Press enter to start")
+
+        R = 0.032
+        pc = [0.15, 0, 0.12]
+        N = 36
+
+        for angle in [i*2*3.14/N for i in range(N+1)]:
+            x = R*cos(angle) + pc[0]
+            y = R*sin(angle) + pc[1]
+            our_robot.move_to_pos([x, y, pc[2]], [0, -0.5, 0], wait=True)
 
         input("Press enter to finish")
 
