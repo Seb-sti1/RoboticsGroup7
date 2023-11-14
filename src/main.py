@@ -8,6 +8,7 @@ from src.utils import deg_to_rad
 
 EPS = 0.0001
 
+
 def reverse_kinematics(o, angles, d, a, alpha):
     """
     Find the parameters of the motors given the position of the end effector
@@ -27,10 +28,10 @@ def reverse_kinematics(o, angles, d, a, alpha):
 
     theta_1 = atan2(y, x)
     # temp vars
-    mu = x/cos(theta_1) - a[3]*cos(theta)
-    rho = z - d[0] - a[3]*sin(theta)
+    mu = x / cos(theta_1) - a[3] * cos(theta)
+    rho = z - d[0] - a[3] * sin(theta)
 
-    cos_theta_3 = (rho**2 + mu**2 - a[1]**2 - a[2]**2) / (2*a[1]*a[2])
+    cos_theta_3 = (rho ** 2 + mu ** 2 - a[1] ** 2 - a[2] ** 2) / (2 * a[1] * a[2])
     if abs(cos_theta_3) > 1:
         print(f"\\cos(\\theta_3) is outside of [-1, 1] by {abs(cos_theta_3) - 1}")
         if abs(cos_theta_3) > 1 + EPS:
@@ -40,8 +41,8 @@ def reverse_kinematics(o, angles, d, a, alpha):
             cos_theta_3 = 1 if cos_theta_3 > 0 else -1
 
     theta_3 = -acos(cos_theta_3)
-    theta_2 = atan2((-a[2]*sin(theta_3)*mu + (a[1] + a[2]*cos(theta_3))*rho),
-                    ((a[1] + a[2]*cos(theta_3))*mu + a[2]*sin(theta_3)*rho))
+    theta_2 = atan2((-a[2] * sin(theta_3) * mu + (a[1] + a[2] * cos(theta_3)) * rho),
+                    ((a[1] + a[2] * cos(theta_3)) * mu + a[2] * sin(theta_3) * rho))
     theta_4 = theta - theta_2 - theta_3
 
     return [theta_1, theta_2, theta_3, theta_4]
@@ -70,23 +71,25 @@ if __name__ == '__main__':
                       simulation=sim)
     v = Visualizer(our_robot)
 
+
     def cmd():
         our_robot.set_speed(0.2)
         # move the robot the full up position
-        our_robot.move_to([0, 3.14/2, 0, 0], wait=True)
+        our_robot.move_to([0, 3.14 / 2, 0, 0], wait=True)
         input("Press enter to start")
 
         R = 0.032
         pc = [0.15, 0, 0.12]
         N = 36
 
-        for angle in [i*2*3.14/N for i in range(N+1)]:
+        for angle in [i * 2 * 3.14 / N for i in range(N + 1)]:
             x = pc[0]
-            y = R*cos(angle) + pc[1]
-            z = R*sin(angle) + pc[2]
+            y = R * cos(angle) + pc[1]
+            z = R * sin(angle) + pc[2]
             our_robot.move_to_pos([x, y, z], [0, 0, 0], wait=True)
 
         input("Press enter to finish")
+
 
     cmd_thread = threading.Thread(target=cmd)
     cmd_thread.start()
