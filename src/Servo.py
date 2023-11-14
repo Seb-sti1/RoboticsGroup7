@@ -1,6 +1,10 @@
 """
 This is an abstraction of the dynamixel motor. It allows to control the motor.
+
+TODO: check if the port is busy before sending a command
 """
+import time
+
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 import ControlTableAddress as addr
 from src.Simulation import SimulatedPacketHandler
@@ -68,6 +72,7 @@ class Servo:
         dxl_present_position, r, e = self.packet_handler.read2ByteTxRx(self.port_handler,
                                                                        self.motor_id,
                                                                        addr.ADDR_MX_PRESENT_POSITION)
+        time.sleep(0.03)
         self.check_comm_result(r, e)
         return self.dxl_angle_to_theta(rot_to_rad(dxl_present_position))
 

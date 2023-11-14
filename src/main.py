@@ -6,6 +6,7 @@ from Robot import Robot
 from src.Visualizer import Visualizer
 from src.utils import deg_to_rad
 
+EPS = 0.0001
 
 def reverse_kinematics(o, angles, d, a, alpha):
     """
@@ -32,7 +33,7 @@ def reverse_kinematics(o, angles, d, a, alpha):
     cos_theta_3 = (rho**2 + mu**2 - a[1]**2 - a[2]**2) / (2*a[1]*a[2])
     if abs(cos_theta_3) > 1:
         print(f"\\cos(\\theta_3) is outside of [-1, 1] by {abs(cos_theta_3) - 1}")
-        if abs(cos_theta_3) > 1.01:
+        if abs(cos_theta_3) > 1 + EPS:
             return False
         else:
             print("Clamping the value to -1 or 1")
@@ -50,7 +51,7 @@ if __name__ == '__main__':
     sim = True
 
     bound_angle_rad = [(deg_to_rad(tup[0]), deg_to_rad(tup[1])) for tup in
-                       [(-130, 130), (-150, 150), (-150, 150), (-150, 150)]]
+                       [(-130, 130), (-20, 170), (-130, 120), (-105, 50)]]
 
     our_robot = Robot([1, 2, 3, 4],
                       bound_angle_rad,
@@ -60,11 +61,11 @@ if __name__ == '__main__':
                       [lambda theta: theta + deg_to_rad(150),
                        lambda theta: theta + deg_to_rad(60),
                        lambda theta: theta + deg_to_rad(150),
-                       lambda theta: theta + deg_to_rad(150)],
+                       lambda theta: theta + deg_to_rad(240)],
                       [lambda angle: angle - deg_to_rad(150),
                        lambda angle: angle - deg_to_rad(60),
                        lambda angle: angle - deg_to_rad(150),
-                       lambda angle: angle - deg_to_rad(150)],
+                       lambda angle: angle - deg_to_rad(240)],
                       reverse_kinematics,
                       simulation=sim)
     v = Visualizer(our_robot)
@@ -80,9 +81,10 @@ if __name__ == '__main__':
         N = 36
 
         for angle in [i*2*3.14/N for i in range(N+1)]:
-            x = R*cos(angle) + pc[0]
-            y = R*sin(angle) + pc[1]
-            our_robot.move_to_pos([x, y, pc[2]], [0, -0.5, 0], wait=True)
+            x = pc[0]
+            y = R*cos(angle) + pc[1]
+            z = R*sin(angle) + pc[2]
+            our_robot.move_to_pos([x, y, z], [0, 0, 0], wait=True)
 
         input("Press enter to finish")
 
@@ -90,6 +92,6 @@ if __name__ == '__main__':
     cmd_thread.start()
 
     while cmd_thread.is_alive():
-        v.viz()
+        v.viz(delay=0.5)
 
     our_robot.stop()
