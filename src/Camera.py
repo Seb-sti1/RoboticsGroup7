@@ -2,10 +2,7 @@ import os.path
 
 import cv2
 import numpy as np
-import math as ma
 import pickle
-
-from src.HSVPicker import pick_hsv
 
 """
 For the camera calibration, we need to find the intrinsic and extrinsic parameters of the camera.
@@ -39,13 +36,30 @@ def list_ports():
     return available_ports, working_ports, non_working_ports
 
 
-def do_config(port, camera_matrix, color_lower, color_upper):
+def load_or_create_config():
     """
     This function will do the camera calibration and save the results to a file.
     :return: port, cameraMatrix
     """
+    port, camera_matrix, color_lower, color_upper = None, None, None, None
 
-    print("No calibration file found. Lets do it now!")
+    if os.path.exists('camera_calibration.pkl'):
+        with open('camera_calibration.pkl', 'rb') as f:
+            data = pickle.load(f)
+
+            if len(data) > 0:
+                port = data[0]
+            if len(data) > 1:
+                camera_matrix = data[1]
+            if len(data) > 2:
+                color_lower = data[2]
+            if len(data) > 3:
+                color_upper = data[3]
+
+    if port is None or camera_matrix is None or color_lower is None or color_upper is None:
+        print("No or partial calibration. Lets do it now!")
+    else:
+        return port, camera_matrix, color_lower, color_upper
 
     if port is None:
         _, a, _ = list_ports()
@@ -289,7 +303,7 @@ class Camera:
         :param ring_int_diam: interior diameter of the ring in mm
         :param contour_area_lower_threshold:
         :param contour_area_upper_threshold:
-        :return: ring position relative to the camera in meters
+        :return: ring position relative to the camera in meters, or None if no ring is found, or False if the user wants to quit
         """
         x, y, z = [0, 0, 0]
 
@@ -344,25 +358,8 @@ class Camera:
 
 
 if __name__ == '__main__':
-    port, camera_matrix, color_lower, color_upper = None, None, None, None
-
-    if os.path.exists('camera_calibration.pkl'):
-        with open('camera_calibration.pkl', 'rb') as f:
-            data = pickle.load(f)
-
-            if len(data) > 0:
-                port = data[0]
-            if len(data) > 1:
-                camera_matrix = data[1]
-            if len(data) > 2:
-                color_lower = data[2]
-            if len(data) > 3:
-                color_upper = data[3]
-
-    if port is None or camera_matrix is None or color_lower is None or color_upper is None:
-        port, camera_matrix, color_lower, color_upper = do_config(port, camera_matrix, color_lower, color_upper)
-
-    c = Camera(camera_matrix, color_lower, color_upper, port)
+    port, camera_matrix, color_lower, color_upper = load_or_create_config()
+    c = Camera(camera_matrix, color_lower, color_upper, port, true)
 
     while True:
         ring = c.get_ring_position(0)
