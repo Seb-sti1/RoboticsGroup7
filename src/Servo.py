@@ -1,7 +1,8 @@
 """
 This is an abstraction of the dynamixel motor. It allows to control the motor.
 
-TODO: check if the port is busy before sending a command
+AX-12A doc: https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/
+Protocol 1.0 API doc: https://emanual.robotis.com/docs/en/dxl/protocol1/
 """
 import time
 
@@ -34,9 +35,9 @@ class Servo:
         self.simulation = simulation
 
         if not simulation:
-            self.packet_handler = dxl.PacketHandler(addr.PROTOCOL_VERSION)
+            self.__packet_handler__ = dxl.PacketHandler(addr.PROTOCOL_VERSION)
         else:
-            self.packet_handler = SimulatedPacketHandler()
+            self.__packet_handler__ = SimulatedPacketHandler()
 
         self.set_position_limit()
         self.enable_motor()
@@ -44,23 +45,34 @@ class Servo:
         self.set_position(0)  # the center of the motor
         self.set_torque_limit(1)
 
+    def __wait_port__(self):
+        while self.port_handler is not None and self.port_handler.is_using:
+            time.sleep(0.01)
+
     def __write1ByteTxRx__(self, address, data):
-        r, e = self.packet_handler.write1ByteTxRx(self.port_handler, self.motor_id, address, data)
-        return self.check_comm_result(r, e)
+        self.__wait_port__()
+        r, e = self.__packet_handler__.write1ByteTxRx(self.port_handler, self.motor_id, address, data)
+        return self.__check_comm_result__(r, e)
 
     def __write2ByteTxRx__(self, address, data):
-        r, e = self.packet_handler.write2ByteTxRx(self.port_handler, self.motor_id, address, data)
-        return self.check_comm_result(r, e)
+        self.__wait_port__()
+        r, e = self.__packet_handler__.write2ByteTxRx(self.port_handler, self.motor_id, address, data)
+        return self.__check_comm_result__(r, e)
 
-    def check_comm_result(self, dxl_comm_result, dxl_error):
+    def __read2ByteTxRx__(self, address):
+        self.__wait_port__()
+        data, r, e = self.__packet_handler__.read2ByteTxRx(self.port_handler, self.motor_id, address)
+        return self.__check_comm_result__(r, e), data
+
+    def __check_comm_result__(self, dxl_comm_result, dxl_error):
         """
         Check the last communication result
         :return: if the communication was successful
         """
         if dxl_comm_result != addr.COMM_SUCCESS:
-            print(f'[{self.motor_id}] {self.packet_handler.getTxRxResult(dxl_comm_result)}')
+            print(f'[{self.motor_id}] {self.__packet_handler__.getTxRxResult(dxl_comm_result)}')
         elif dxl_error != 0:
-            print(f'[{self.motor_id}] {self.packet_handler.getRxPacketError(dxl_error)}')
+            print(f'[{self.motor_id}] {self.__packet_handler__.getRxPacketError(dxl_error)}')
         else:
             return True
         return False
@@ -69,12 +81,11 @@ class Servo:
         """
         :return: the position of the motor in radians
         """
-        dxl_present_position, r, e = self.packet_handler.read2ByteTxRx(self.port_handler,
-                                                                       self.motor_id,
-                                                                       addr.ADDR_MX_PRESENT_POSITION)
-        time.sleep(0.03)
-        self.check_comm_result(r, e)
-        return self.dxl_angle_to_theta(rot_to_rad(dxl_present_position))
+        r, data = self.__read2ByteTxRx__(addr.ADDR_MX_PRESENT_POSITION)
+        if not r:
+            raise Exception("Error while reading the position")
+
+        return self.dxl_angle_to_theta(rot_to_rad(data))
 
     def set_position(self, angle):
         """
