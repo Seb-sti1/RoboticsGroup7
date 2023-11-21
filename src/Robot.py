@@ -2,8 +2,12 @@
 An abstraction of the robot. It allows to control the robot.
 """
 import time
+
+import numpy as np
+
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 from src.Servo import Servo
+from src.Visualizer import denavit_hartenberg
 from src.utils import rad_to_deg, deg_to_rad
 
 BAUDRATE = 1000000  # Baudrate for Motors
@@ -58,6 +62,8 @@ class Robot:
                                      angle[0], angle[1],
                                      theta_to_dxl_angle, dxl_angle_to_theta,
                                      self.port_handler, simulation))
+
+        self.last_angles = (self.get_servos_angle(), time.time_ns())
 
     def set_custom_plot_draw_callback(self, add_to_plot):
         """
@@ -118,11 +124,36 @@ class Robot:
 
         return False
 
-    def get_positions(self):
+    def get_servos_angle(self):
         """
         Get the current positions of the servos
         """
         return [servo.get_position() for servo in self.servos]
+
+    def get_servos_angle_not_too_old(self, delay):
+        """
+        Get the last saved positions of the servos if the last save is older than the delay
+
+        :param delay: the delay in microseconds
+        """
+        if time.time_ns() - self.last_angles[1] > delay * 1000:
+            self.last_angles = (self.get_servos_angle(), time.time_ns())
+        return self.last_angles[0]
+
+    def get_stylus_transformation_matrix(self):
+        H = np.eye(4)
+        for i, (theta, d, a, alpha) in enumerate(zip(self.get_servos_angle(), self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2])):
+            H = np.matmul(H, denavit_hartenberg(theta, d, a, alpha))
+
+        return H
+
+    def get_stylus_position(self):
+        H = self.get_stylus_transformation_matrix()
+        return H[:3, 3]
+
+    def get_stylus_orientation(self):
+        H = self.get_stylus_transformation_matrix()
+        return H[:3, :3]
 
     def is_moving(self, delay=0.1):
         """
@@ -130,9 +161,9 @@ class Robot:
         :param delay: the delay between the checks
         :return: boolean
         """
-        positions_before = self.get_positions()
+        positions_before = self.get_servos_angle()
         time.sleep(delay)
-        positions_after = self.get_positions()
+        positions_after = self.get_servos_angle()
         diff = 0
         for position_before, position_after in zip(positions_before, positions_after):
             diff += abs(position_after - position_before)
@@ -150,10 +181,10 @@ class Robot:
         """
         Draw the current state of the robot
         """
-        thetas = self.get_positions()
+        thetas = self.get_servos_angle()
         if log:
             print("Current angles are", [rad_to_deg(theta) for theta in thetas])
-        visualizer.show_robot(thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
+        visualizer.show_robot(self.add_to_plot, thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
 
     def stop(self):
         for servo in self.servos:
