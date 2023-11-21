@@ -33,6 +33,8 @@ class Robot:
 
         self.port = port
 
+        self.add_to_plot = lambda x: None
+
         if not simulation:
             self.port_handler = dxl.PortHandler(self.port)
             if self.port_handler.openPort():
@@ -56,6 +58,13 @@ class Robot:
                                      angle[0], angle[1],
                                      theta_to_dxl_angle, dxl_angle_to_theta,
                                      self.port_handler, simulation))
+
+    def set_custom_plot_draw_callback(self, add_to_plot):
+        """
+        Set a callback function that the visualizer will call when drawing the robot
+        :param add_to_plot: (plt_ax) -> None
+        """
+        self.add_to_plot = add_to_plot
 
     def move_to(self, angles, wait=False):
         """

@@ -59,9 +59,10 @@ class Visualizer:
         self.ax.set_ylabel('$y$')
         self.ax.set_zlabel('$z$')
 
-    def show_robot(self, theta_l, d_l, a_l, alpha_l, delay):
+    def show_robot(self, add_to_plot, theta_l, d_l, a_l, alpha_l,  delay):
         """
         Show the robot in a 3D plot
+        :param add_to_plot: a function that adds things to the 3D plot
         :param theta_l: the DH parameters
         :param d_l: the DH parameters
         :param a_l: the DH parameters
@@ -72,7 +73,7 @@ class Visualizer:
         self.ax.cla()
         self.ax.set_xlim([-0.1, 0.3])
         self.ax.set_ylim([-0.25, 0.25])
-        self.ax.set_zlim([0, 0.25])
+        self.ax.set_zlim([-0.08, 0.25])
         self.ax.set_xlabel('$x$')
         self.ax.set_ylabel('$y$')
         self.ax.set_zlabel('$z$')
@@ -96,6 +97,7 @@ class Visualizer:
                          [frames[i].o[1], frames[i + 1].o[1]],
                          [frames[i].o[2], frames[i + 1].o[2]],
                          color='k', alpha=1, linewidth=3)
+        add_to_plot(self.ax)
 
         plt.draw()
         plt.show(block=False)
