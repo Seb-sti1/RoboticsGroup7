@@ -5,6 +5,8 @@ import numpy as np
 import math as ma
 import pickle
 
+from src.HSVPicker import pick_hsv
+
 """
 For the camera calibration, we need to find the intrinsic and extrinsic parameters of the camera.
 """
@@ -37,98 +39,164 @@ def list_ports():
     return available_ports, working_ports, non_working_ports
 
 
-def do_config():
+def do_config(port, camera_matrix, color_lower, color_upper):
     """
     This function will do the camera calibration and save the results to a file.
     :return: port, cameraMatrix
     """
 
     print("No calibration file found. Lets do it now!")
-    a, _, _ = list_ports()
-    print("Available ports: ", a)
-    port = int(input("Which port is the camera connected to? "))
 
-    print("Please enter the size of the chessboard in squares (width, height)")
-    chessboardSize = (int(input("width:")), int(input("height:")))  # 9 6
-    frameSize = None
+    if port is None:
+        _, a, _ = list_ports()
+        print("Available ports: ", a)
+        port = int(input("Which port is the camera connected to? "))
 
-    # termination criteria
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    if camera_matrix is None or color_lower is None or color_upper is None:
+        cap = cv2.VideoCapture(port)
 
-    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
+    if camera_matrix is None:
+        print("Please enter the size of the chessboard in squares (width, height)")
+        chessboardSize = (int(input("width:")), int(input("height:")))  # 9 6
+        frameSize = None
 
-    size_of_chessboard_squares_mm = float(input("Size of the chessboard squares in mm: "))  # 20.57
-    objp = objp * size_of_chessboard_squares_mm
+        # termination criteria
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-    # Arrays to store object points and image points from all the images.
-    objpoints = []  # 3d point in real world space
-    imgpoints = []  # 2d points in image plane.
+        # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+        objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
+        objp[:, :2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
 
-    cap = cv2.VideoCapture(port)
-    while True:
+        size_of_chessboard_squares_mm = float(input("Size of the chessboard squares in mm: "))  # 20.57
+        objp = objp * size_of_chessboard_squares_mm
+
+        # Arrays to store object points and image points from all the images.
+        objpoints = []  # 3d point in real world space
+        imgpoints = []  # 2d points in image plane.
+
         print("To quit press q")
         print("To take a image t")
+        while True:
 
-        ret, frame = cap.read()
-        if frameSize is None:
-            frameSize = frame.shape[:2]
+            ret, frame = cap.read()
+            if frameSize is None:
+                frameSize = frame.shape[:2]
 
-        cv2.imshow('camera', frame)
-        k = cv2.waitKey(5)
+            cv2.imshow('camera', frame)
+            k = cv2.waitKey(5)
+            if k == ord('q') or k == 27:
+                break
+            elif k == ord('t'):
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # Find the chess board corners
+                ret, corners = cv2.findChessboardCorners(gray, chessboardSize, None)
 
-        if k == ord('q') or k == 27:
-            break
-        elif k == ord('t'):
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Find the chess board corners
-            ret, corners = cv2.findChessboardCorners(gray, chessboardSize, None)
+                # If found, add object points, image points (after refining them)
+                if ret:
+                    corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
 
-            # If found, add object points, image points (after refining them)
-            if ret:
-                corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+                    # Draw and display the corners
+                    cv2.drawChessboardCorners(frame, chessboardSize, corners2, ret)
+                    cv2.imshow('detected chess', frame)
 
-                # Draw and display the corners
-                cv2.drawChessboardCorners(frame, chessboardSize, corners2, ret)
-                cv2.imshow('detected chess', frame)
+                    print("Add image to calibration? (y/n)")
+                    s = cv2.waitKey()
+                    if s == ord('y'):
+                        print("Image added")
+                        print("To quit press q")
+                        print("To take a image t")
+                        imgpoints.append(corners)
+                        objpoints.append(objp)
+                else:
+                    print("chessboard not found")
 
-                print("Add image to calibration? (y/n)")
-                s = cv2.waitKey()
-                if s == ord('y'):
-                    print("Image added")
-                    imgpoints.append(corners)
-                    objpoints.append(objp)
+        cv2.destroyAllWindows()
 
-            else:
-                print("chessboard not found")
+        ret, camera_matrix, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
 
-    cv2.destroyAllWindows()
+        # Reprojection Error
+        mean_error = 0
+        for i in range(len(objpoints)):
+            imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], camera_matrix, dist)
+            error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
+            mean_error += error
 
-    ret, cameraMatrix, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
+        print("Total error: {}".format(mean_error / len(objpoints)))
 
-    # Reprojection Error
-    mean_error = 0
-    for i in range(len(objpoints)):
-        imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], cameraMatrix, dist)
-        error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
-        mean_error += error
+    if color_lower is None or color_upper is None:
+        print("Let's choose the HSV values")
+        # Create a window
+        cv2.namedWindow('image')
 
-    print("Total error: {}".format(mean_error / len(objpoints)))
+        # Create trackbars for color change
+        # Hue is from 0-179 for Opencv
+        cv2.createTrackbar('HMin', 'image', 0, 179, lambda x: None)
+        cv2.createTrackbar('SMin', 'image', 0, 255, lambda x: None)
+        cv2.createTrackbar('VMin', 'image', 0, 255, lambda x: None)
+        cv2.createTrackbar('HMax', 'image', 0, 179, lambda x: None)
+        cv2.createTrackbar('SMax', 'image', 0, 255, lambda x: None)
+        cv2.createTrackbar('VMax', 'image', 0, 255, lambda x: None)
+
+        # Set default value for Max HSV trackbars
+        cv2.setTrackbarPos('HMax', 'image', 179)
+        cv2.setTrackbarPos('SMax', 'image', 255)
+        cv2.setTrackbarPos('VMax', 'image', 255)
+
+        # Initialize HSV min/max values
+        hMin = sMin = vMin = hMax = sMax = vMax = 0
+        phMin = psMin = pvMin = phMax = psMax = pvMax = 0
+
+        while True:
+            ret, frame = cap.read()
+
+            hMin = cv2.getTrackbarPos('HMin', 'image')
+            sMin = cv2.getTrackbarPos('SMin', 'image')
+            vMin = cv2.getTrackbarPos('VMin', 'image')
+            hMax = cv2.getTrackbarPos('HMax', 'image')
+            sMax = cv2.getTrackbarPos('SMax', 'image')
+            vMax = cv2.getTrackbarPos('VMax', 'image')
+
+            # Set minimum and maximum HSV values to display
+            lower = np.array([hMin, sMin, vMin])
+            upper = np.array([hMax, sMax, vMax])
+
+            # Convert to HSV format and color threshold
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            mask = cv2.inRange(hsv, lower, upper)
+            result = cv2.bitwise_and(frame, frame, mask=mask)
+
+            # Print if there is a change in HSV value
+            if ((phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax)):
+                print("(hMin = %d , sMin = %d, vMin = %d), (hMax = %d , sMax = %d, vMax = %d)" % (
+                hMin, sMin, vMin, hMax, sMax, vMax))
+                phMin = hMin
+                psMin = sMin
+                pvMin = vMin
+                phMax = hMax
+                psMax = sMax
+                pvMax = vMax
+
+            # Display result image
+            cv2.imshow('image', result)
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                break
+
+        color_lower = (hMin, sMin, vMin)
+        color_upper = (hMax, sMax, vMax)
+
+        cv2.destroyAllWindows()
 
     print("Calibration done. Saving to file.")
 
     with open('camera_calibration.pkl', 'wb') as f:
-        pickle.dump((port, cameraMatrix), f)
+        pickle.dump((port, camera_matrix, color_lower, color_upper), f)
 
-    return port, cameraMatrix
+    return port, camera_matrix, color_lower, color_upper
 
 
 """
 Function to find the ellipse of the ring in the image.
 """
-
-
 def perspective_transform(image, pitch_angle):
     # Assuming pitch_angle is in degrees
 
@@ -155,9 +223,9 @@ def perspective_transform(image, pitch_angle):
     return transformed_image
 
 
-def filter_yellow(frame):
+def filter_yellow(frame, color_lower, color_upper):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, (14, 45, 140), (50, 130, 255))
+    mask = cv2.inRange(hsv, color_lower, color_upper)
     frame_mask = cv2.bitwise_and(frame, frame, mask=mask)
     ret, threshold = cv2.threshold(cv2.cvtColor(frame_mask, cv2.COLOR_BGR2GRAY), 125, 255, cv2.THRESH_BINARY)
 
@@ -190,12 +258,14 @@ def get_inside_and_outside_ellipses(threshold, contour_area_lower_threshold, con
 
 
 class Camera:
-    def __init__(self, camera_matrix, port=0, debug=False):
+    def __init__(self, camera_matrix, color_lower, color_upper, port=0, debug=False):
         self.port = port
         self.camera = cv2.VideoCapture(port)
         self.debug = debug
         self.focal_length = (camera_matrix[0][0] + camera_matrix[1][1]) / 2
         self.center = camera_matrix[0][2], camera_matrix[1][2]
+        self.color_lower = color_lower
+        self.color_upper = color_upper
 
         cv2.namedWindow("camera")
         if debug:
@@ -229,7 +299,7 @@ class Camera:
 
         compensated = perspective_transform(frame, pitch_angle)
 
-        threshold = filter_yellow(compensated)
+        threshold = filter_yellow(compensated, self.color_lower, self.color_upper)
         outside_ellipse, inside_ellipse = get_inside_and_outside_ellipses(threshold,
                                                                           contour_area_lower_threshold,
                                                                           contour_area_upper_threshold)
@@ -274,14 +344,25 @@ class Camera:
 
 
 if __name__ == '__main__':
-    port, camera_matrix = None, None
+    port, camera_matrix, color_lower, color_upper = None, None, None, None
+
     if os.path.exists('camera_calibration.pkl'):
         with open('camera_calibration.pkl', 'rb') as f:
-            port, camera_matrix = pickle.load(f)
-    else:
-        port, camera_matrix = do_config()
+            data = pickle.load(f)
 
-    c = Camera(camera_matrix)
+            if len(data) > 0:
+                port = data[0]
+            if len(data) > 1:
+                camera_matrix = data[1]
+            if len(data) > 2:
+                color_lower = data[2]
+            if len(data) > 3:
+                color_upper = data[3]
+
+    if port is None or camera_matrix is None or color_lower is None or color_upper is None:
+        port, camera_matrix, color_lower, color_upper = do_config(port, camera_matrix, color_lower, color_upper)
+
+    c = Camera(camera_matrix, color_lower, color_upper, port)
 
     while True:
         ring = c.get_ring_position(0)
