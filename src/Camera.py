@@ -36,15 +36,16 @@ def list_ports():
     return available_ports, working_ports, non_working_ports
 
 
-def load_or_create_config():
+def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=False):
     """
     This function will do the camera calibration and save the results to a file.
     :return: port, cameraMatrix
     """
     port, camera_matrix, color_lower, color_upper = None, None, None, None
 
-    if os.path.exists('camera_calibration.pkl'):
-        with open('camera_calibration.pkl', 'rb') as f:
+    print("Working directory is ", os.getcwd(), ". It needs to be the src folder.")
+    if os.path.exists(filename):
+        with open(filename, 'rb') as f:
             data = pickle.load(f)
 
             if len(data) > 0:
@@ -56,7 +57,7 @@ def load_or_create_config():
             if len(data) > 3:
                 color_upper = data[3]
 
-    if port is None or camera_matrix is None or color_lower is None or color_upper is None:
+    if port is None or camera_matrix is None or color_lower is None or color_upper is None or recalib_colors:
         print("No or partial calibration. Lets do it now!")
     else:
         return port, camera_matrix, color_lower, color_upper
@@ -66,12 +67,12 @@ def load_or_create_config():
         print("Available ports: ", a)
         port = int(input("Which port is the camera connected to? "))
 
-    if camera_matrix is None or color_lower is None or color_upper is None:
+    if camera_matrix is None or color_lower is None or color_upper is None or recalib_colors:
         cap = cv2.VideoCapture(port)
 
     if camera_matrix is None:
-        print("Please enter the size of the chessboard in squares (width, height)")
-        chessboardSize = (int(input("width:")), int(input("height:")))  # 9 6
+        print("Please enter the size of the chessboard in squares (width, height). Suggestions: 9 6")
+        chessboardSize = (int(input("width:")), int(input("height:")))
         frameSize = None
 
         # termination criteria
@@ -81,7 +82,7 @@ def load_or_create_config():
         objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
         objp[:, :2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
 
-        size_of_chessboard_squares_mm = float(input("Size of the chessboard squares in mm: "))  # 20.57
+        size_of_chessboard_squares_mm = float(input("Size of the chessboard squares in mm (suggestion 20.57): "))
         objp = objp * size_of_chessboard_squares_mm
 
         # Arrays to store object points and image points from all the images.
@@ -91,7 +92,6 @@ def load_or_create_config():
         print("To quit press q")
         print("To take a image t")
         while True:
-
             ret, frame = cap.read()
             if frameSize is None:
                 frameSize = frame.shape[:2]
@@ -137,7 +137,7 @@ def load_or_create_config():
 
         print("Total error: {}".format(mean_error / len(objpoints)))
 
-    if color_lower is None or color_upper is None:
+    if color_lower is None or color_upper is None or recalib_colors:
         print("Let's choose the HSV values")
         # Create a window
         cv2.namedWindow('image')
@@ -158,10 +158,12 @@ def load_or_create_config():
 
         # Initialize HSV min/max values
         hMin = sMin = vMin = hMax = sMax = vMax = 0
-        phMin = psMin = pvMin = phMax = psMax = pvMax = 0
 
         while True:
             ret, frame = cap.read()
+
+            if not ret:
+                continue
 
             hMin = cv2.getTrackbarPos('HMin', 'image')
             sMin = cv2.getTrackbarPos('SMin', 'image')
@@ -179,17 +181,6 @@ def load_or_create_config():
             mask = cv2.inRange(hsv, lower, upper)
             result = cv2.bitwise_and(frame, frame, mask=mask)
 
-            # Print if there is a change in HSV value
-            if ((phMin != hMin) | (psMin != sMin) | (pvMin != vMin) | (phMax != hMax) | (psMax != sMax) | (pvMax != vMax)):
-                print("(hMin = %d , sMin = %d, vMin = %d), (hMax = %d , sMax = %d, vMax = %d)" % (
-                hMin, sMin, vMin, hMax, sMax, vMax))
-                phMin = hMin
-                psMin = sMin
-                pvMin = vMin
-                phMax = hMax
-                psMax = sMax
-                pvMax = vMax
-
             # Display result image
             cv2.imshow('image', result)
             if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -200,9 +191,12 @@ def load_or_create_config():
 
         cv2.destroyAllWindows()
 
+    if cap is not None:
+        cap.release()
+
     print("Calibration done. Saving to file.")
 
-    with open('camera_calibration.pkl', 'wb') as f:
+    with open(filename, 'wb') as f:
         pickle.dump((port, camera_matrix, color_lower, color_upper), f)
 
     return port, camera_matrix, color_lower, color_upper
@@ -246,10 +240,12 @@ def filter_yellow(frame, color_lower, color_upper):
     return threshold
 
 
-def get_inside_and_outside_ellipses(threshold, contour_area_lower_threshold, contour_area_upper_threshold):
+def get_inside_and_outside_ellipses(threshold, contour_area_lower_threshold, contour_area_upper_threshold, debug=False):
     contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     ordered_contour = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+    if debug:
+        print("Contours area: ", [cv2.contourArea(c) for c in ordered_contour])
 
     # find the
     outside_ellipse = None
@@ -273,6 +269,7 @@ def get_inside_and_outside_ellipses(threshold, contour_area_lower_threshold, con
 
 class Camera:
     def __init__(self, camera_matrix, color_lower, color_upper, port=0, debug=False):
+        print("Initializing camera on port %s" % port)
         self.port = port
         self.camera = cv2.VideoCapture(port)
         self.debug = debug
@@ -296,7 +293,7 @@ class Camera:
         return frame if rval else None
 
     def get_ring_position(self, pitch_angle, ring_ext_diam=100, ring_int_diam=60,
-                          contour_area_lower_threshold=1500, contour_area_upper_threshold=70000):
+                          contour_area_lower_threshold=1500, contour_area_upper_threshold=120000):
         """
         :param pitch_angle: IN DEGREES for now
         :param ring_ext_diam: exterior diameter of the ring in mm
@@ -305,7 +302,7 @@ class Camera:
         :param contour_area_upper_threshold:
         :return: ring position relative to the camera in meters, or None if no ring is found, or False if the user wants to quit
         """
-        x, y, z = [0, 0, 0]
+        coords = None
 
         frame = self.get_frame()
         if frame is None:
@@ -316,7 +313,8 @@ class Camera:
         threshold = filter_yellow(compensated, self.color_lower, self.color_upper)
         outside_ellipse, inside_ellipse = get_inside_and_outside_ellipses(threshold,
                                                                           contour_area_lower_threshold,
-                                                                          contour_area_upper_threshold)
+                                                                          contour_area_upper_threshold,
+                                                                          self.debug)
 
         if outside_ellipse is not None and inside_ellipse is not None:
             cv2.ellipse(compensated, outside_ellipse, (0, 255, 0), 2)
@@ -336,8 +334,9 @@ class Camera:
             cv2.line(compensated, (int(avg_centx), int(self.center[1])), (int(avg_centx), int(avg_centy)), (255, 0, 0), 1)
 
             x = s_avg * self.focal_length/1000
-            y = (avg_centx - self.center[0]) * s_avg / 1000
-            z = (self.center[1] - avg_centy) * s_avg / 1000
+            y = (self.center[1] - avg_centy) * s_avg / 1000
+            z = (avg_centx - self.center[0]) * s_avg / 1000
+            coords = np.array([x, y, z])
             cv2.putText(compensated, "x: %.2f, y: %.2f, z: %.2f" % (x, y, z),
                         (int(avg_centx), int(avg_centy) + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
@@ -348,7 +347,7 @@ class Camera:
         if key == 27:  # exit on ESC
             return False
 
-        return x, y, z
+        return coords
 
     def close(self):
         self.camera.release()
@@ -359,7 +358,7 @@ class Camera:
 
 if __name__ == '__main__':
     port, camera_matrix, color_lower, color_upper = load_or_create_config()
-    c = Camera(camera_matrix, color_lower, color_upper, port, true)
+    c = Camera(camera_matrix, color_lower, color_upper, port, True)
 
     while True:
         ring = c.get_ring_position(0)
