@@ -43,7 +43,7 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
     """
     port, camera_matrix, color_lower, color_upper = None, None, None, None
 
-    print("Working directory is ", os.getcwd(), ". It needs to be the src folder.")
+    print("Working directory is", os.getcwd(), ". It needs to be the src folder.")
     if os.path.exists(filename):
         with open(filename, 'rb') as f:
             data = pickle.load(f)
@@ -138,7 +138,7 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
         print("Total error: {}".format(mean_error / len(objpoints)))
 
     if color_lower is None or color_upper is None or recalib_colors:
-        print("Let's choose the HSV values")
+        print("Let's choose the HSV values of the ring. Press q to quit.")
         # Create a window
         cv2.namedWindow('image')
 
@@ -183,7 +183,8 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
 
             # Display result image
             cv2.imshow('image', result)
-            if cv2.waitKey(10) & 0xFF == ord('q'):
+            k = cv2.waitKey(5)
+            if k == ord('q') or k == 27:
                 break
 
         color_lower = (hMin, sMin, vMin)
@@ -199,8 +200,8 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
     with open(filename, 'wb') as f:
         pickle.dump((port, camera_matrix, color_lower, color_upper), f)
 
-    return port, camera_matrix, color_lower, color_upper
-
+    print("Please restart the program.")
+    exit(0)
 
 """
 Function to find the ellipse of the ring in the image.
@@ -343,16 +344,16 @@ class Camera:
         cv2.imshow("camera", compensated)
         if self.debug:
             cv2.imshow("debug", threshold)
-        key = cv2.waitKey(5)
-        if key == 27:  # exit on ESC
+        k = cv2.waitKey(5)
+        if k == ord('q') or k == 27:
             return False
 
         return coords
 
     def close(self):
         self.camera.release()
+        cv2.destroyWindow("camera")
         if self.debug:
-            cv2.destroyWindow("camera")
             cv2.destroyWindow("debug")
 
 

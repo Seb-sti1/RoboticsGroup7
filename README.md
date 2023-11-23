@@ -24,6 +24,16 @@ The frames are defined as follows:
 
 _The end effector isn't represented in the current version._
 
+## Description of the files
+
+- `Servo.py`: contains the class `Servo` which allows to control a servo motor.
+- `RobotDescription.py`: contains the class `RobotDescription` which allows to describe the robot, especially the frames and the reverse kinematics.
+- `Robot.py`: contains the class `Robot` which allows to control the robot. It uses the class `Servo`.
+- `Simulation.py`: contains the class `Simulation` which allows to simulate the `PacketHandler` from the dynamixel library.
+- `Visualizer.py`: contains the class `Visualizer` which allows to visualize the robot in 3D.
+- `Camera.py`: contains the class `Camera` which allows to calibrate and control the camera.
+- `test_reverse_kinematics.py`: contains the tests for the reverse kinematics.
+
 ## How to use
 
 ### Installation
@@ -32,9 +42,21 @@ _The end effector isn't represented in the current version._
 pip install -r requirements.txt
 ```
 
-### Description of the files
+_Note:_ tqdm and mpi4py are only required for the test of the reverse kinematics.
 
-- `Servo.py`: contains the class `Servo` which allows to control a servo motor.
-- `Robot.py`: contains the class `Robot` which allows to control the robot. It uses the class `Servo`.
-- `Simulation.py`: contains the class `Simulation` which allows to simulate the `PacketHandler` from the dynamixel library.
-- `Visualizer.py`: contains the class `Visualizer` which allows to visualize the robot in 3D.
+### Start
+
+Change the value of `sim` in `main.py` to `False` to use the real robot.
+The calibration of the camera requires a chessboard image.
+
+```bash
+python main.py
+```
+
+Then follow the instructions in the terminal.
+
+### Start the test
+
+```bash
+mpiexec -n 8 python -m mpi4py test_reverse_kinematics.py
+```

@@ -2,3 +2,5 @@ numpy
 matplotlib
 pyserial
 opencv-python
+tqdm
+mpi4py

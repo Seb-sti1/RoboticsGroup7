@@ -8,7 +8,7 @@ import time
 
 import dynamixel_sdk.src.dynamixel_sdk as dxl
 import ControlTableAddress as addr
-from src.Simulation import SimulatedPacketHandler
+from Simulation import SimulatedPacketHandler
 from utils import rad_to_rot, rot_to_rad
 
 

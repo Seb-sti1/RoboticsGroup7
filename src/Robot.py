@@ -6,37 +6,24 @@ import time
 import numpy as np
 
 import dynamixel_sdk.src.dynamixel_sdk as dxl
-from src.Servo import Servo
-from src.Visualizer import denavit_hartenberg
-from src.utils import rad_to_deg, deg_to_rad
+from Servo import Servo
+from utils import rad_to_deg, deg_to_rad
 
 BAUDRATE = 1000000  # Baudrate for Motors
 DEVICENAME = '/dev/ttyACM0'  # the port of the controller examples: Windows: 'COM1' Linux: '/dev/ttyUSB0'
 
 
 class Robot:
-    def __init__(self, ids,
-                 bound_angles, d, a, alpha,
-                 theta_to_dxl_angle_l, dxl_angle_to_theta_l,
-                 reverse_kinematics,
+    def __init__(self, ids, robot_def,
                  port=DEVICENAME, simulation=False):
         """
         :param ids: the ids of the motors
-        :param bound_angles: an array of the bound angles of the motors
-        :param d: the d parameters of the Denavit Hartenberg table
-        :param a: the a parameters of the Denavit Hartenberg table
-        :param alpha: the alpha parameters of the Denavit Hartenberg table
-        :param theta_to_dxl_angle_l: a list of functions to convert theta_i to the angle using the dynamixel convention
-        :param dxl_angle_to_theta_l: a list of functions to convert the angle using the dynamixel convention to theta_i
-        :param reverse_kinematics: a function to calculate the angles of the motors given the position of the end effector
+        :param robot_def: the definition of the robot
         :param port: the port of the controller
         :param simulation: if the robot should be simulated
         """
-        self.dh_parameters = [d, a, alpha]
-        self.reverse_kinematics = reverse_kinematics
-
+        self.robot_def = robot_def
         self.port = port
-
         self.add_to_plot = lambda x: None
 
         if not simulation:
@@ -56,8 +43,9 @@ class Robot:
         # create the servos
         self.servos = []
         for (motor_id, angle,
-             theta_to_dxl_angle, dxl_angle_to_theta) in zip(ids, bound_angles,
-                                                            theta_to_dxl_angle_l, dxl_angle_to_theta_l):
+             theta_to_dxl_angle, dxl_angle_to_theta) in zip(ids, robot_def.get_bound_angle(self),
+                                                            robot_def.get_theta_to_dxl_angle_l(self),
+                                                            robot_def.get_dxl_angle_to_theta_l(self)):
             self.servos.append(Servo(motor_id,
                                      angle[0], angle[1],
                                      theta_to_dxl_angle, dxl_angle_to_theta,
@@ -106,7 +94,7 @@ class Robot:
         :return:
         """
 
-        angles = self.reverse_kinematics(o, angle, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2])
+        angles = self.robot_def.reverse_kinematics(o, angle, self)
         if angles:
             in_bounds = True
             for angle, servo in zip(angles, self.servos):
@@ -141,19 +129,11 @@ class Robot:
         return self.last_angles[0]
 
     def get_stylus_transformation_matrix(self):
-        H = np.eye(4)
-        for i, (theta, d, a, alpha) in enumerate(zip(self.get_servos_angle(), self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2])):
-            H = np.matmul(H, denavit_hartenberg(theta, d, a, alpha))
-
-        return H
+        return self.robot_def.get_stylus_transformation_matrix(self)
 
     def get_stylus_position(self):
         H = self.get_stylus_transformation_matrix()
         return H[:3, 3]
-
-    def get_stylus_orientation(self):
-        H = self.get_stylus_transformation_matrix()
-        return H[:3, :3]
 
     def is_moving(self, delay=0.1):
         """
@@ -181,10 +161,15 @@ class Robot:
         """
         Draw the current state of the robot
         """
-        thetas = self.get_servos_angle()
+        thetas = self.robot_def.get_theta(self)
         if log:
             print("Current angles are", [rad_to_deg(theta) for theta in thetas])
-        visualizer.show_robot(self.add_to_plot, thetas, self.dh_parameters[0], self.dh_parameters[1], self.dh_parameters[2], delay)
+        visualizer.show_robot(self.add_to_plot,
+                              thetas,
+                              self.robot_def.get_d(self),
+                              self.robot_def.get_a(self),
+                              self.robot_def.get_alpha(self),
+                              delay)
 
     def stop(self):
         for servo in self.servos:

@@ -1,54 +1,11 @@
 import threading
-from math import atan2, sin, cos, acos
-
+from math import sin, cos
 import numpy as np
-
 from Robot import Robot
-from src.Camera import load_or_create_config, Camera
-from src.Visualizer import Visualizer
-from src.utils import deg_to_rad, rad_to_deg
-
-EPS = 0.0001
-
-
-def reverse_kinematics(o, angles, d, a, alpha):
-    """
-    Find the parameters of the motors given the position of the end effector
-    :param o: vector of x, y, z
-    :param angles: vector roll pitch yaw
-    :param d:
-    :param a:
-    :param alpha:
-    :return: the angles of the different motors or false if the position is not reachable
-    """
-    x, y, z = o
-    # phi = 0 and psi is ignored
-    phi, theta, psi = angles
-
-    if phi != 0:
-        return False
-
-    theta_1 = atan2(y, x)
-    # temp vars
-    mu = x / cos(theta_1) - a[3] * cos(theta)
-    rho = z - d[0] - a[3] * sin(theta)
-
-    cos_theta_3 = (rho ** 2 + mu ** 2 - a[1] ** 2 - a[2] ** 2) / (2 * a[1] * a[2])
-    if abs(cos_theta_3) > 1:
-        print(f"\\cos(\\theta_3) is outside of [-1, 1] by {abs(cos_theta_3) - 1}")
-        if abs(cos_theta_3) > 1 + EPS:
-            return False
-        else:
-            print("Clamping the value to -1 or 1")
-            cos_theta_3 = 1 if cos_theta_3 > 0 else -1
-
-    theta_3 = -acos(cos_theta_3)
-    theta_2 = atan2((-a[2] * sin(theta_3) * mu + (a[1] + a[2] * cos(theta_3)) * rho),
-                    ((a[1] + a[2] * cos(theta_3)) * mu + a[2] * sin(theta_3) * rho))
-    theta_4 = theta - theta_2 - theta_3
-
-    return [theta_1, theta_2, theta_3, theta_4]
-
+from Camera import load_or_create_config, Camera
+from RobotDefinition import RoboticsArm
+from Visualizer import Visualizer
+from utils import deg_to_rad
 
 if __name__ == '__main__':
     sim = True
@@ -56,28 +13,11 @@ if __name__ == '__main__':
     port, camera_matrix, color_lower, color_upper = load_or_create_config() if not sim else load_or_create_config(
         "my_webcam_calibration.pkl")
 
-    bound_angle_rad = [(deg_to_rad(tup[0]), deg_to_rad(tup[1])) for tup in
-                       [(-130, 130), (-20, 170), (-130, 120), (-105, 50)]]
-
-    T45 = np.array([[1, 0, 0, 0.045],
-                    [0, 1, 0, -0.015],
-                    [0, 0, 1, 0],
-                    [0, 0, 0, 1]])
+    robot_def = RoboticsArm()
+    T45 = robot_def.get_T45()
 
     our_robot = Robot([1, 2, 3, 4],
-                      bound_angle_rad,
-                      [0.05, 0, 0, 0],
-                      [0, 0.093, 0.093, 0.05],
-                      [3.14 / 2, 0, 0, 0],
-                      [lambda theta: theta + deg_to_rad(150),
-                       lambda theta: theta + deg_to_rad(60),
-                       lambda theta: theta + deg_to_rad(150),
-                       lambda theta: theta + deg_to_rad(240)],
-                      [lambda angle: angle - deg_to_rad(150),
-                       lambda angle: angle - deg_to_rad(60),
-                       lambda angle: angle - deg_to_rad(150),
-                       lambda angle: angle - deg_to_rad(240)],
-                      reverse_kinematics,
+                      robot_def,
                       simulation=sim)
     v = Visualizer(our_robot)
 
@@ -99,9 +39,10 @@ if __name__ == '__main__':
                 z = R * sin(angle) + pc[2]
                 our_robot.move_to_pos([x, y, z], [0, 0, 0], wait=True)
 
-        print("Loading and starting the config of the camera")
+        print("Loading and starting the config of the camera.")
         c = Camera(camera_matrix, color_lower, color_upper, port)
 
+        print("You can quit the program by pressing Echap.")
         our_robot.move_to([0, deg_to_rad(80), deg_to_rad(-45), deg_to_rad(-105)], wait=True)
         while True:
             # get the position of the stylus
