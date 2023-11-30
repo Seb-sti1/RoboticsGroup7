@@ -67,6 +67,7 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
         print("Available ports: ", a)
         port = int(input("Which port is the camera connected to? "))
 
+    cap = None
     if camera_matrix is None or color_lower is None or color_upper is None or recalib_colors:
         cap = cv2.VideoCapture(port)
 
@@ -203,9 +204,7 @@ def load_or_create_config(filename='camera_calibration.pkl', recalib_colors=Fals
     print("Please restart the program.")
     exit(0)
 
-"""
-Function to find the ellipse of the ring in the image.
-"""
+
 def perspective_transform(image, pitch_angle):
     # Assuming pitch_angle is in degrees
 
@@ -274,10 +273,14 @@ class Camera:
         self.port = port
         self.camera = cv2.VideoCapture(port)
         self.debug = debug
-        self.focal_length = (camera_matrix[0][0] + camera_matrix[1][1]) / 2
+        self.focal_length_u = camera_matrix[0][0]
+        self.focal_length_v = camera_matrix[1][1]
         self.center = camera_matrix[0][2], camera_matrix[1][2]
         self.color_lower = color_lower
         self.color_upper = color_upper
+
+        # decrease the camera buffer size to 1 image to get only the most recent image available
+        self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         cv2.namedWindow("camera")
         if debug:
@@ -293,19 +296,23 @@ class Camera:
 
         return frame if rval else None
 
-    def get_ring_position(self, pitch_angle, ring_ext_diam=100, ring_int_diam=60,
-                          contour_area_lower_threshold=1500, contour_area_upper_threshold=120000):
+    def get_ring_position(self, pitch_angle, ring_ext_diam=0.1, ring_int_diam=0.06,
+                          contour_area_lower_threshold=1500, contour_area_upper_threshold=140000):
         """
         :param pitch_angle: IN DEGREES for now
-        :param ring_ext_diam: exterior diameter of the ring in mm
-        :param ring_int_diam: interior diameter of the ring in mm
+        :param ring_ext_diam: exterior diameter of the ring in m
+        :param ring_int_diam: interior diameter of the ring in m
         :param contour_area_lower_threshold:
         :param contour_area_upper_threshold:
-        :return: ring position relative to the camera in meters, or None if no ring is found, or False if the user wants to quit
+        :return: ring position relative to the camera in meters, or None if no ring is found
         """
         coords = None
 
+        # make sure we get the most recent image
         frame = self.get_frame()
+        f = self.get_frame()
+        if f is not None:
+            frame = f
         if frame is None:
             return None
 
@@ -317,34 +324,50 @@ class Camera:
                                                                           contour_area_upper_threshold,
                                                                           self.debug)
 
+        o_c, o_r = self.center[0], self.center[1]
+        size_c, size_r = compensated.shape[0], compensated.shape[1]
+
+        # draw the center of the image
+        cv2.line(compensated, (0, int(o_c)), (size_r, int(o_c)), (150, 150, 150), 1)
+        cv2.line(compensated, (int(o_r), 0), (int(o_r), size_c), (150, 150, 150), 1)
+
         if outside_ellipse is not None and inside_ellipse is not None:
             cv2.ellipse(compensated, outside_ellipse, (0, 255, 0), 2)
             cv2.ellipse(compensated, inside_ellipse, (255, 0, 0), 2)
             # find the center of the ellipses
-            ((inside_centx, inside_centy), (inside_width, inside_height), inside_angle) = inside_ellipse
-            ((outside_centx, outside_centy), (outside_width, outside_height), outside_angle) = outside_ellipse
+            ((inside_centr, inside_centc), (inside_c_size, inside_r_size), inside_angle) = inside_ellipse
+            ((outside_centr, outside_centc), (outside_c_size, outside_r_size), outside_angle) = outside_ellipse
 
-            # scale
-            s_out = ring_ext_diam / outside_height
-            s_ins = ring_int_diam / inside_height
-            s_avg = (s_out + s_ins) / 2
+            # average center of the two ellipses
+            avg_centr = (inside_centr + outside_centr) / 2
+            avg_centc = (inside_centc + outside_centc) / 2
 
-            avg_centx = (inside_centx + outside_centx) / 2
-            avg_centy = (inside_centy + outside_centy) / 2
-            cv2.line(compensated, (int(self.center[0]), int(self.center[1])), (int(avg_centx), int(self.center[1])), (255, 0, 0), 1)
-            cv2.line(compensated, (int(avg_centx), int(self.center[1])), (int(avg_centx), int(avg_centy)), (255, 0, 0), 1)
+            # draw lines for the user
+            cv2.line(compensated, (int(o_r), int(o_c)), (int(avg_centr), int(o_c)),
+                     (255, 0, 0), 1)
+            cv2.line(compensated, (int(avg_centr), int(o_c)), (int(avg_centr), int(avg_centc)),
+                     (255, 0, 0), 1)
 
-            x = s_avg * self.focal_length/1000
-            y = (self.center[1] - avg_centy) * s_avg / 1000
-            z = (avg_centx - self.center[0]) * s_avg / 1000
+            cv2.line(compensated, (int(outside_centr - outside_r_size / 2), int(outside_centc)),
+                     (int(outside_centr + outside_r_size / 2), int(outside_centc)), (255, 255, 0), 1),
+            cv2.line(compensated, (int(outside_centr), int(outside_centc - outside_c_size / 2)),
+                     (int(outside_centr), int(outside_centc + outside_c_size // 2)), (255, 255, 0), 1),
+
+            inside_cent_x = ring_int_diam / inside_r_size * self.focal_length_u
+            outside_cent_x = ring_ext_diam / outside_r_size * self.focal_length_u
+
+            x = (outside_cent_x + inside_cent_x) / 2
+            y = (o_c - avg_centc) / self.focal_length_v * x
+            z = (avg_centr - o_r) / self.focal_length_u * x
+
             coords = np.array([x, y, z])
             cv2.putText(compensated, "x: %.2f, y: %.2f, z: %.2f" % (x, y, z),
-                        (int(avg_centx), int(avg_centy) + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                        (int(avg_centr), int(avg_centc) + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         cv2.imshow("camera", compensated)
         if self.debug:
             cv2.imshow("debug", threshold)
-        k = cv2.waitKey(5)
+        k = cv2.waitKey(15)
         if k == ord('q') or k == 27:
             return False
 
@@ -358,7 +381,7 @@ class Camera:
 
 
 if __name__ == '__main__':
-    port, camera_matrix, color_lower, color_upper = load_or_create_config()
+    port, camera_matrix, color_lower, color_upper = load_or_create_config("my_webcam_calibration.pkl")
     c = Camera(camera_matrix, color_lower, color_upper, port, True)
 
     while True:
