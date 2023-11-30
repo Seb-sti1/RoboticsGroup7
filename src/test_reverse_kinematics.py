@@ -39,6 +39,7 @@ if __name__ == '__main__':
 
     EPS = 0.0002
     cube_size = 0.3  # m
+    cube_center = [0, 0, 0]  # m
     step = 0.05  # m
     angle_step = deg_to_rad(5)  # rad
     show_graph = True
@@ -57,7 +58,7 @@ if __name__ == '__main__':
               f"with a step of {step} m and {angle_step} rad. (EPS={EPS})")
         print(f"Testing {N} positions with {size} mpi process... (this may take a while)")
 
-        x_l = np.arange(-cube_size, cube_size, step)
+        x_l = np.arange(-cube_size, cube_size, step) + cube_center[0]
 
         for x in (pbar := tqdm(x_l)):
             pbar.set_description(f"[{rank}] Reachable: {reachable} ({reachable / N * 100}%)")
@@ -128,8 +129,8 @@ if __name__ == '__main__':
             if x is False:
                 break
 
-            for y in np.arange(-cube_size, cube_size, step):
-                for z in np.arange(-cube_size, cube_size, step):
+            for y in np.arange(-cube_size, cube_size, step) + cube_center[1]:
+                for z in np.arange(-cube_size, cube_size, step) + cube_center[2]:
 
                     if show_graph:
                         # the number of reachable theta in bound (of the Dynamixels), and not in bound

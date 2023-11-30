@@ -97,6 +97,11 @@ class Visualizer:
                          [frames[i].o[1], frames[i + 1].o[1]],
                          [frames[i].o[2], frames[i + 1].o[2]],
                          color='k', alpha=1, linewidth=3)
+
+        # add text of the coordinates of the last frame
+        self.ax.text(frames[-1].o[0], frames[-1].o[1], frames[-1].o[2],  "({:.3f}, {:.3f}, {:.3f})".format(frames[-1].o[0], frames[-1].o[1], frames[-1].o[2]))
+
+        # run custom function on the plot
         add_to_plot(self.ax)
 
         plt.draw()

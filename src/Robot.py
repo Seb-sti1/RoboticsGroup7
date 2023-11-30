@@ -84,7 +84,7 @@ class Robot:
         """
         self.move_to([deg_to_rad(angle) for angle in angles], wait)
 
-    def move_to_pos(self, o, angle, wait=False, throw=False):
+    def move_to_pos(self, o, angle, wait=False, throw=False, verbose=False):
         """
         Move the robot to the given position
         :param o: x, y, z
@@ -94,11 +94,13 @@ class Robot:
         :return:
         """
 
-        angles = self.robot_def.reverse_kinematics(o, angle, self)
+        angles = self.robot_def.reverse_kinematics(o, angle, self, verbose=verbose)
         if angles:
             in_bounds = True
             for angle, servo in zip(angles, self.servos):
                 if angle < servo.bound[0] or angle > servo.bound[1]:
+                    if verbose:
+                        print(f"Angle {rad_to_deg(angle)} out of bounds for servo {servo.motor_id} ({servo.bound}).")
                     in_bounds = False
                     break
             if in_bounds:

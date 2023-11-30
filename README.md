@@ -32,7 +32,11 @@ _The end effector isn't represented in the current version._
 - `Simulation.py`: contains the class `Simulation` which allows to simulate the `PacketHandler` from the dynamixel library.
 - `Visualizer.py`: contains the class `Visualizer` which allows to visualize the robot in 3D.
 - `Camera.py`: contains the class `Camera` which allows to calibrate and control the camera.
-- `test_reverse_kinematics.py`: contains the tests for the reverse kinematics.
+- `test_reverse_kinematics.py`: contains the tests for the reverse kinematics. Use mpi to run the tests in parallel.
+
+## Camera frames
+
+[Camera frame](camera_frames.png)
 
 ## How to use
 
@@ -55,7 +59,7 @@ python main.py
 
 Then follow the instructions in the terminal.
 
-### Start the test
+### Start the test of the reverse kinematics
 
 ```bash
 mpiexec -n 8 python -m mpi4py test_reverse_kinematics.py

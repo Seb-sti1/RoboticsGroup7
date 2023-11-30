@@ -97,7 +97,7 @@ class RoboticsArm(RobotDefinition):
         cos_theta_3 = (rho ** 2 + mu ** 2 - a[1] ** 2 - a[2] ** 2) / (2 * a[1] * a[2])
         if abs(cos_theta_3) > 1:
             if verbose:
-                print(f"\\cos(\\theta_3) is outside of [-1, 1] by {abs(cos_theta_3) - 1}")
+                print(f"\\cos(\\theta_3)={cos_theta_3} is outside of [-1, 1] by {abs(cos_theta_3) - 1}")
             if abs(cos_theta_3) > 1 + EPS:
                 return False
             else:
@@ -109,6 +109,9 @@ class RoboticsArm(RobotDefinition):
         theta_2 = atan2((-a[2] * sin(theta_3) * mu + (a[1] + a[2] * cos(theta_3)) * rho),
                         ((a[1] + a[2] * cos(theta_3)) * mu + a[2] * sin(theta_3) * rho))
         theta_4 = theta - theta_2 - theta_3
+
+        if verbose:
+            print(f'theta_1: {theta_1}, theta_2: {theta_2}, theta_3: {theta_3}, theta_4: {theta_4}')
 
         return [theta_1, theta_2, theta_3, theta_4]
 
@@ -129,7 +132,7 @@ class RoboticsArm(RobotDefinition):
                 [(-130, 130), (-20, 170), (-130, 120), (-105, 50)]]
 
     def get_T45(self):
-        return np.array([[1, 0, 0, 0.045],
-                         [0, 1, 0, -0.015],
+        return np.array([[1, 0, 0, -0.015],
+                         [0, 1, 0, 0.045],
                          [0, 0, 1, 0],
                          [0, 0, 0, 1]])
