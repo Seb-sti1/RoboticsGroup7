@@ -94,7 +94,8 @@ if __name__ == '__main__':
             if k == ord('y'):
                 if our_robot.move_to_pos(ring_in_zero + [0, 0, 0.05], [0, deg_to_rad(-90), 0], wait=True,
                                          verbose=True):
-                    print("Position reach. Press enter to continue.")
+                    print("Position reach.")
+                print("Press enter to continue.")
                 k = cv2.waitKey(0)
                 while k != 13:
                     k = cv2.waitKey(0)
