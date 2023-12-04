@@ -235,7 +235,7 @@ def filter_yellow(frame, color_lower, color_upper):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, color_lower, color_upper)
     frame_mask = cv2.bitwise_and(frame, frame, mask=mask)
-    ret, threshold = cv2.threshold(cv2.cvtColor(frame_mask, cv2.COLOR_BGR2GRAY), 125, 255, cv2.THRESH_BINARY)
+    ret, threshold = cv2.threshold(cv2.cvtColor(frame_mask, cv2.COLOR_BGR2GRAY), 20, 255, cv2.THRESH_BINARY)
 
     return threshold
 
@@ -342,6 +342,10 @@ class Camera:
             avg_centr = (inside_centr + outside_centr) / 2
             avg_centc = (inside_centc + outside_centc) / 2
 
+            # ratios
+            ratio_c = (ring_ext_diam / outside_c_size + ring_int_diam / inside_c_size) / 2
+            ratio_r = (ring_ext_diam / outside_r_size + ring_int_diam / inside_r_size) / 2
+
             # draw lines for the user
             cv2.line(compensated, (int(o_r), int(o_c)), (int(avg_centr), int(o_c)),
                      (255, 0, 0), 1)
@@ -357,8 +361,8 @@ class Camera:
             outside_cent_x = ring_ext_diam / outside_r_size * self.focal_length_u
 
             x = (outside_cent_x + inside_cent_x) / 2
-            y = (o_c - avg_centc) / self.focal_length_v * x
-            z = (avg_centr - o_r) / self.focal_length_u * x
+            y = (o_c - avg_centc) * ratio_c
+            z = (avg_centr - o_r) * ratio_r
 
             coords = np.array([x, y, z])
             cv2.putText(compensated, "x: %.2f, y: %.2f, z: %.2f" % (x, y, z),
